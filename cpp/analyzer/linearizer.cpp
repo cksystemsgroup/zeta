@@ -25,6 +25,7 @@ int main(int argc, char** argv) {
 
   if (argc < 4) {
     fprintf(stderr, "usage: ./linearizer <mode> <operations> <logfilename>\n");
+    fprintf(stderr, "The following modes exist: max; invocation; lin_point; response; sum\n");
     exit(3);
   }
 
