@@ -99,52 +99,155 @@ void insert_to_list(Node* node, Node* predecessor) {
   predecessor->next = node;
 }
 
+int calculate_cost_increase_insert
+(Operations* operations, Node* insert_op, Node* op, int cost_decrease, uint64_t last_start) {
+  int cost_increase = 0;
+  Node* tmp = operations->insert_order->next;
+
+  while (tmp->operation != op->operation) {
+    
+    if (tmp->matching_op->operation->start() >
+        insert_op->matching_op->operation->end() &&
+        tmp->operation->end() < last_start) {
+
+      // We only count operations operations which end before the last
+      // of the cost-decreasing operations is started.
+      cost_increase++;
+    }
+
+    tmp = tmp->next;
+  }
+
+  return cost_increase;
+}
 
 bool is_selectable_insert (Operations* operations, Node* insert_op, uint64_t first_end) {
 
-  int left_index = 0;
-  int right_index = 0;
+  int cost_increase = 0;
+  int cost_decrease = 0;
+//    bool overlap = false;
+  uint64_t last_start = 0;
+  bool cost_decrease_found = false;
 
   Node* op = operations->insert_order->next;
 
   while (op != operations->insert_order) {
-
-    if (op == insert_op) {
-      // Do nothing.
+   
+    if (op->operation == insert_op->operation) {
+      // Do nothing for the operation itself.
     } else if (op->operation->is_null_return() 
         && op->operation->start() > first_end
         && op->matching_op->order < insert_op->matching_op->order
         ) {
 
-      right_index++;
-      if (right_index >= left_index) {
-        return false;
+      // Consider null-return dequeues.
+      cost_decrease++;
+      cost_decrease_found = true;
+      if (op->operation->start() > last_start) {
+        last_start = op->operation->start();
       }
     } else if (op->operation->start() > insert_op->operation->end()) {
-      // Upper bound for the calculation.
+      // The remove_op strictly precedes op. We can stop the calculation.
       break;
-    } else if(op->matching_op->order >
-        insert_op->matching_op->order) {
-
-      left_index++;
     } else if (op->operation->start() > first_end &&
         op->matching_op->order <
         insert_op->matching_op->order) {
+      // If insert_op is linearized after op, then the costs of insert_op
+      // would be decreased by one.
+      cost_decrease++;
+      cost_decrease_found = true;
+      if (op->operation->start() > last_start) {
+        last_start = op->operation->start();
+      }
+    } else if (op->matching_op->order >
+        insert_op->matching_op->order) {
+      // If remove_op is linearized after op, then the costs of op would be
+      // increased by one.
+      
+      if (!cost_decrease_found) {
+        // This op is not preceded by a sequence of operations which decrease
+        // the costs of remove_op. We do nothing.
+      } else {
+        // This is the first operation which would have increased costs after
+        // a sequence of operations which decrease the costs of remove_op.
+        // Check if this sequence was enough to make remove_op unselectable.
+        // We count the number of operations which precede op, which would
+        // increase the costs, and which respond before the last start of a
+        // cost-decreasing operation. If this number is higher than the number
+        // of cost-decreasing operations, then remove_op is not selectable.
 
-      right_index++;
-      if (right_index >= left_index) {
-        return false;
+        cost_decrease_found = false;
+
+        cost_increase = calculate_cost_increase_insert(
+            operations, insert_op, op, cost_decrease, last_start);
+
+        if (cost_decrease >= cost_increase) {
+          return false;
+        }
       }
     }
 
     op = op->next;
   }
 
+  if (cost_decrease_found) {
+    // The operation op is either the end of the list, or the first operation
+    // which does not overlap with insert_op.
+    cost_increase = calculate_cost_increase_insert(
+        operations, insert_op, op, cost_decrease, last_start);
 
-  return true;
+    if (cost_decrease >= cost_increase) {
+      return false;
+    } else {
+      return true;
+    }
+  } else {
+    return true;
+  }
+
+//  int cost_increase = 0;
+//  int cost_decrease = 0;
+//
+//  Node* op = operations->insert_order->next;
+//
+//  while (op != operations->insert_order) {
+//
+//    if (op == insert_op) {
+//      // Do nothing.
+//    } else if (op->operation->is_null_return() 
+//        && op->operation->start() > first_end
+//        && op->matching_op->order < insert_op->matching_op->order
+//        ) {
+//
+//      cost_decrease++;
+//      if (cost_decrease >= cost_increase) {
+//        return false;
+//      }
+//    } else if (op->operation->start() > insert_op->operation->end()) {
+//      // Upper bound for the calculation.
+//      break;
+//    } else if(op->matching_op->order >
+//        insert_op->matching_op->order) {
+//
+//      cost_increase++;
+//    } else if (op->operation->start() > first_end &&
+//        op->matching_op->order <
+//        insert_op->matching_op->order) {
+//
+//      cost_decrease++;
+//      if (cost_decrease >= cost_increase) {
+//        return false;
+//      }
+//    }
+//
+//    op = op->next;
+//  }
+//
+//  return true;
 }
 
-int calculate_cost_increase(Operations* operations, Node* remove_op, Node* op, int cost_decrease, uint64_t last_start) {
+int calculate_cost_increase_remove
+(Operations* operations, Node* remove_op, Node* op, int cost_decrease, uint64_t last_start) {
   int cost_increase = 0;
   Node* tmp = operations->remove_order->next;
 
@@ -186,6 +289,8 @@ bool is_selectable_remove (Operations* operations, Node* remove_op, uint64_t fir
     while (!done && op != operations->remove_order) {
 
       while (insert_op != operations->insert_order && insert_op->order < op->order) {
+        // Iterate over all insert operations which precede the remove operation
+        // op in the last linearization.
 
         if (insert_op->operation->end() < remove_op->operation->start()) {
           // This insert operation is already considered in the costs by the
@@ -196,6 +301,8 @@ bool is_selectable_remove (Operations* operations, Node* remove_op, uint64_t fir
           done = true;
           break;
         } else {
+          // If remove_op is linearized after op, then insert_op would precede
+          // remove_op and the costs of remove_op would increase by 1.
           possible_costs++;
         }
         insert_op = insert_op->next;
@@ -212,7 +319,8 @@ bool is_selectable_remove (Operations* operations, Node* remove_op, uint64_t fir
         // anymore. We are done.
         break;
       } else {
-
+        // The costs of a null-return remove operation decrement with ever remove
+        // operation.
         possible_costs--;
         if (possible_costs < costs) {
           return false;
@@ -267,7 +375,7 @@ bool is_selectable_remove (Operations* operations, Node* remove_op, uint64_t fir
 
           cost_decrease_found = false;
 
-          cost_increase = calculate_cost_increase(
+          cost_increase = calculate_cost_increase_remove(
               operations, remove_op, op, cost_decrease, last_start);
 
           if (cost_decrease >= cost_increase) {
@@ -280,7 +388,7 @@ bool is_selectable_remove (Operations* operations, Node* remove_op, uint64_t fir
     }
 
     if (cost_decrease_found) {
-      cost_increase = calculate_cost_increase(
+      cost_increase = calculate_cost_increase_remove(
           operations, remove_op, op, cost_decrease, last_start);
 
       if (cost_decrease >= cost_increase) {
