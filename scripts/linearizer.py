@@ -37,7 +37,7 @@ def startCalculation(inputData):
   analyzer.wait()
   resultFile.close()
   if analyzer.returncode and analyzer.returncode != 0 :
-    print ("The analyzer failed for the file {filename}".format(filename = item))
+    print ("The analyzer failed for the file {filename} with the error code {error}".format(filename = item, error = analyzer.returncode))
     return
 
 def calcLinearization(mode, inputDir, outputDir):
