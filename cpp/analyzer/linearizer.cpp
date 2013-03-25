@@ -62,7 +62,6 @@ int main(int argc, char** argv) {
   }
 
   if (strcmp(analyzer, "age") == 0) {
-    fprintf(stderr, "Hello World\n");
     Element** elements = convert_order_to_elements(linearization, num_ops);
     Result* result = calculate_age(elements, num_ops);
     printf("max: %"PRIu64"; num_ops: %"PRIu64"; total: %"PRIu64"; average: %0.3f\n",
