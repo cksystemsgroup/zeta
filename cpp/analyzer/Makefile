@@ -5,7 +5,7 @@ LDFLAGS =
 
 all: linearizer analyzer test nondet
 
-test: test.o operation.o parser.o linearizer_max.o linearizer_invocation.o linearizer_sum.o linearizer_point.o linearizer_response.o
+test: test.o operation.o parser.o linearizer_max.o linearizer_invocation.o linearizer_sum.o linearizer_point.o linearizer_response.o age.o
 	g++ ${CPPFLAGS} ${LDFLAGS} $^ -o $@
 
 %.o: %.cpp *.h
@@ -17,7 +17,7 @@ analyzer: analyzer.o operation.o parser.o age.o
 nondet: nondet.o operation.o parser.o
 	g++ ${CPPFLAGS} ${LDFLAGS} $^ -o $@
 
-linearizer: linearizer.o operation.o parser.o linearizer_max.o linearizer_invocation.o linearizer_sum.o linearizer_point.o linearizer_response.o
+linearizer: linearizer.o operation.o parser.o linearizer_max.o linearizer_invocation.o linearizer_sum.o linearizer_point.o linearizer_response.o age.o
 	g++ ${CPPFLAGS} ${LDFLAGS} $^ -o $@
 
 .PHONY: clean

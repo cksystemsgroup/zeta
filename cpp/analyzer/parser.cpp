@@ -8,8 +8,9 @@
 #include <inttypes.h>
 #include "operation.h"
 #include "element.h"
+#include "linearizer.h"
 
-Operation** parse_logfile(char* filename, int num_ops) {
+Operation** parse_logfile(const char* filename, int num_ops) {
 
   FILE* input = fopen(filename, "r");
 
@@ -60,6 +61,25 @@ Operation** parse_logfile(char* filename, int num_ops) {
   fclose(input);
 
   return ops;
+}
+
+Element** convert_order_to_elements(Order ** ops, int num_ops) {
+
+  Element** result = new Element*[num_ops];
+
+  for (int i = 0; i < num_ops; i++) {
+    result[i] = new Element();
+
+    Element::ElementType type = Element::REMOVE;
+
+    if (ops[i]->operation->type() == Operation::INSERT) {
+      type = Element::INSERT;
+    }
+
+    result[i]->initialize(ops[i]->order, type, ops[i]->operation->value(), ops[i]->operation->start());
+  }
+
+  return result;
 }
 
 Element** parse_linearization(FILE* input, int num_ops) {

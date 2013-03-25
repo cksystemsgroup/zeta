@@ -10,6 +10,8 @@
 #include <time.h>
 #include <assert.h>
 #include <string.h>
+#include "element.h"
+#include "analyzer.h"
 
 void print_op(Operation* op) {
 
@@ -32,6 +34,11 @@ int main(int argc, char** argv) {
   char* mode = argv[1];
   int num_ops = atoi(argv[2]);
   char* filename = argv[3];
+  
+  const char* analyzer = "non";
+  if (argc >= 5) {
+    analyzer = argv[4];
+  }
 
   Operation** ops = parse_logfile(filename, num_ops);
   
@@ -54,9 +61,18 @@ int main(int argc, char** argv) {
     exit(11);
   }
 
-  for (int i = 0; i < num_ops; i++) {
-    assert(linearization[i] != NULL);
-    print_op(linearization[i]->operation);
+  if (strcmp(analyzer, "age") == 0) {
+    fprintf(stderr, "Hello World\n");
+    Element** elements = convert_order_to_elements(linearization, num_ops);
+    Result* result = calculate_age(elements, num_ops);
+    printf("max: %"PRIu64"; num_ops: %"PRIu64"; total: %"PRIu64"; average: %0.3f\n",
+        result->max_costs, result->num_ops, result->total_costs, result->avg_costs);
+
+  } else {
+    for (int i = 0; i < num_ops; i++) {
+      assert(linearization[i] != NULL);
+      print_op(linearization[i]->operation);
+    }
   }
   return 0;
 }

@@ -7,9 +7,12 @@
 #include <stdio.h>
 #include "operation.h"
 #include "element.h"
+#include "linearizer.h"
 
-Operation** parse_logfile(char* filename, int num_ops);
+Operation** parse_logfile(const char* filename, int num_ops);
 
 Element** parse_linearization(FILE* input, int num_ops);
+
+Element** convert_order_to_elements(Order** ops, int num_ops);
 
 #endif // PARSER_H
