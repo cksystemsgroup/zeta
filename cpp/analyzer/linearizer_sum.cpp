@@ -144,6 +144,27 @@ bool is_selectable_insert (Operations* operations, Node* insert_op, uint64_t fir
   return true;
 }
 
+int calculate_cost_increase(Operations* operations, Node* remove_op, Node* op, int cost_decrease, uint64_t last_start) {
+  int cost_increase = 0;
+  Node* tmp = operations->remove_order->next;
+
+  while (tmp->operation != op->operation) {
+    
+    if (tmp->matching_op->operation->start() >
+        remove_op->matching_op->operation->end() &&
+        tmp->operation->end() < last_start) {
+
+      // We only count operations operations which end before the last
+      // of the cost-decreasing operations is started.
+      cost_increase++;
+    }
+
+    tmp = tmp->next;
+  }
+
+  return cost_increase;
+}
+
 bool is_selectable_remove (Operations* operations, Node* remove_op, uint64_t first_end) {
 
   if (remove_op->operation->is_null_return()) {
@@ -151,6 +172,7 @@ bool is_selectable_remove (Operations* operations, Node* remove_op, uint64_t fir
     int costs = get_remove_costs(operations, remove_op);
 
     if (costs == 0) {
+      // A remove operation is always selectable when its costs are zero.
       return true;
     }
     
@@ -199,40 +221,79 @@ bool is_selectable_remove (Operations* operations, Node* remove_op, uint64_t fir
     }
 
     return true;
-  } else {
+  } else { // if the operation is not a null return
 
     int cost_increase = 0;
     int cost_decrease = 0;
+//    bool overlap = false;
+    uint64_t last_start = 0;
+    bool cost_decrease_found = false;
 
     Node* op = operations->remove_order->next;
 
     while (op != operations->remove_order) {
-
-      if (op == remove_op) {
-        // Do nothing.
+     
+      if (op->operation == remove_op->operation) {
+        // Do nothing for the operation itself.
       } else if (op->operation->start() > remove_op->operation->end()) {
-        // Upper bound for the calculation.
+        // The remove_op strictly precedes op. We can stop the calculation.
         break;
-      } else if(op->matching_op->operation->start() >
-          remove_op->matching_op->operation->end()) {
-
-        cost_increase++;
       } else if (op->operation->start() > first_end &&
           op->matching_op->operation->end() <
           remove_op->matching_op->operation->start()) {
-
+        // If remove_op is linearized after op, then the costs of remove_op
+        // would be decreased by one.
         cost_decrease++;
-        if (cost_decrease >= cost_increase) {
-          return false;
+        cost_decrease_found = true;
+        if (op->operation->start() > last_start) {
+          last_start = op->operation->start();
+        }
+      } else if (op->matching_op->operation->start() >
+          remove_op->matching_op->operation->end()) {
+        // If remove_op is linearized after op, then the costs of op would be
+        // increased by one.
+        
+        if (!cost_decrease_found) {
+          // This op is not preceded by a sequence of operations which decrease
+          // the costs of remove_op. We do nothing.
+        } else {
+          // This is the first operation which would have increased costs after
+          // a sequence of operations which decrease the costs of remove_op.
+          // Check if this sequence was enough to make remove_op unselectable.
+          // We count the number of operations which precede op, which would
+          // increase the costs, and which respond before the last start of a
+          // cost-decreasing operation. If this number is higher than the number
+          // of cost-decreasing operations, then remove_op is not selectable.
+
+          cost_decrease_found = false;
+
+          cost_increase = calculate_cost_increase(
+              operations, remove_op, op, cost_decrease, last_start);
+
+          if (cost_decrease >= cost_increase) {
+            return false;
+          }
         }
       }
 
       op = op->next;
     }
 
-    return true;
+    if (cost_decrease_found) {
+      cost_increase = calculate_cost_increase(
+          operations, remove_op, op, cost_decrease, last_start);
+
+      if (cost_decrease >= cost_increase) {
+        return false;
+      } else {
+        return true;
+      }
+    } else {
+      return true;
+    }
   }
 }
+
 
 ///
 // This function calculates the costs of insert operations.
@@ -551,6 +612,7 @@ void linearize_remove_ops(Operations* operations) {
 
     // Remove the operation with minimal costs from the list of unselected
     // operations.
+//    fprintf(stderr, "minimal_costs_op: %"PRId64"\n", minimal_costs_op->operation->value());
     remove_from_list(minimal_costs_op);
 
     // Assign the order index to the removed operation.
@@ -909,7 +971,12 @@ bool fixed_point_reached(Order** left, Order** right, int num_ops) {
   return true;
 }
 
+void print_op(Operation* op);
+
 Order** linearize_by_min_sum(Operation** ops, int num_ops, Order** order) {
+
+//  static uint64_t bla = 1;
+//  uint64_t round = bla++;
 
   using namespace sum;
   Operations* operations = new Operations();
@@ -927,7 +994,20 @@ Order** linearize_by_min_sum(Operation** ops, int num_ops, Order** order) {
   destroy_insert_and_remove_array(operations);
   delete (operations);
 
-  if (fixed_point_reached(order, new_order, num_ops)) {
+//  printf("round %"PRIu64":\n", round);
+
+  bool done = fixed_point_reached(order, new_order, num_ops);
+
+
+//  for (int i = 0; i < num_ops; i++) {
+//    print_op(order[i]->operation);
+//  }
+
+  if ( done
+//      fixed_point_reached(order, new_order, num_ops) 
+//      || round == 6 
+      ) {
+//    printf("round: %"PRIu64"\n", round);
     return new_order;
   } else {
     return linearize_by_min_sum(ops, num_ops, new_order);

@@ -10,6 +10,7 @@
 #include <time.h>
 #include <assert.h>
 #include <string.h>
+#include "analyzer.h"
 
 void print_op(Operation* op) {
 
@@ -385,10 +386,10 @@ void test_null_return6() {
   Order** linearization;
   linearization = linearize_by_min_max(ops, num_ops);
 
-  for (int i = 0; i < num_ops; i++) {
-    assert(linearization[i] != NULL);
-    print_op(linearization[i]->operation);
-  }
+//  for (int i = 0; i < num_ops; i++) {
+//    assert(linearization[i] != NULL);
+//    print_op(linearization[i]->operation);
+//  }
   
   assert (linearization[0]->operation == &i2);
   assert (linearization[1]->operation == &r2);
@@ -423,10 +424,36 @@ void test_prophetic_dequeue() {
   assert (linearization[3]->operation == &r2);
   printf("%s passed!\n", __func__);
 }
+
+/// This test tests the selectable function for null-returns
+void test_convergence() {
+
+  int num_ops = 46;
+  Operation** ops = parse_logfile("test_convergence.lin", num_ops);
+  Order** linearization;
+  linearization = linearize_by_min_sum(ops, num_ops, linearize_by_invocation(ops, num_ops));
+
+  Element** elements = convert_order_to_elements(linearization, num_ops);
+  Result* result = calculate_age(elements, num_ops);
+
+  printf("max: %"PRIu64"; num_ops: %"PRIu64"; total: %"PRIu64"; average: %0.3f\n",
+      result->max_costs, result->num_ops, result->total_costs, result->avg_costs);
+
+//  for (int i = 0; i < num_ops; i++) {
+//   assert(linearization[i] != NULL);
+//    print_op(linearization[i]->operation);
+//  }
+
+  assert(result->total_costs == 156);
+  
+  printf("%s passed!\n", __func__);
+}
+
 int main(int argc, char** argv) {
 
-  test_selectable_remove();
+  test_convergence();
   test_selectable_insert();
+  test_selectable_remove();
   test_equal_time_stamp_max();
   test_equal_time_stamp_sum();
   test_null_return1();
