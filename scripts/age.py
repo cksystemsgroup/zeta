@@ -22,7 +22,7 @@ def startCalculation(inputData):
   lines = getLineCount(item)
   if lines > 0:
 
-    filename = "../results/age/{directory}{filename}".format(filename = os.path.basename(item), directory = inputData["directory"])
+    filename = "{directory}{filename}".format(filename = os.path.basename(item), directory = inputData["directory"])
     if os.path.exists(filename):
       return
   else :
@@ -38,18 +38,19 @@ def startCalculation(inputData):
     print ("The analyzer failed for the file {filename}".format(filename = item))
     return
 
-def calcOpFairness(directory):
+def calcOpFairness(in_dir, out_dir):
  
-  if not directory.endswith('/') :
-    directory = directory + '/'
+  if not in_dir.endswith('/') :
+    in_dir = in_dir + '/'
+
+  if not out_dir.endswith('/') :
+    out_dir = out_dir + '/'
   
-  outputDir = "../results/age/{directory}".format(directory = directory)
+  if not os.path.exists(out_dir) :
+    os.makedirs(out_dir)
 
-  if not os.path.exists(outputDir) :
-    os.makedirs(outputDir)
-
-  logDir = "../results/{directory}".format(directory = directory)
-  filenames = [{"filename":os.path.join(logDir, f), "directory":directory} for f in os.listdir(logDir) if os.path.isfile(os.path.join(logDir, f))]
+  logDir = in_dir
+  filenames = [{"filename":os.path.join(logDir, f), "directory":out_dir} for f in os.listdir(logDir) if os.path.isfile(os.path.join(logDir, f))]
 
   pool = multiprocessing.Pool(multiprocessing.cpu_count())
   pool.map(startCalculation, filenames)
@@ -61,7 +62,7 @@ def calcOpFairness(directory):
 #  startCalculation(filenames[0])
 #  pool.map(startCalculation, [1, 2, 3])
 
-if len(sys.argv) < 2:
-  print ("python op_fairness.py <directory>, e.g. 'python op_fairness pldi13/' for logfiles in /mnt/local_homes/ahaas/pldi13/")
+if len(sys.argv) < 3:
+  print ("python age.py <in_directory> <out_directory>")
 else:
-  calcOpFairness(sys.argv[1]) 
+  calcOpFairness(sys.argv[1], sys.argv[2]) 
