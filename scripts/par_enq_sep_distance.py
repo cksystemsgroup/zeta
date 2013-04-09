@@ -5,8 +5,13 @@ import math;
 def calcDistribution(filename, outputFilename):
   content = open(filename, 'r').readlines()
 
+  if len(content) == 0:
+    print "Invalid file {filename}".format(filename = filename)
+    return
+
   numOps = 10000
-  array = [0] * 100
+  first_array = [0] * 100
+  last_array = [999999999999] * 100
   index = 0
   total = 0
 
@@ -15,42 +20,59 @@ def calcDistribution(filename, outputFilename):
       index = index + 1
       parts = line.split(' ')
       value = int(parts[1])
-      thread = value / numOps
+      thread = (value - 1) / numOps
       if thread < 0 or thread >= 100:
         print "Invalid thread {id} in file {filename}".format(id = thread, filename = filename)
         return
-      elif array[thread] != 0:
-        oldIndex = array[thread]
-        difference = index - oldIndex
-        total = total + difference
+      else :
+        if first_array[thread] == 0:
+          first_array[thread] = index
+        last_array[thread] = index
 
-      array[thread] = index
 
-  average = total / float(index-2)
+  startIndex = max(first_array)
+  endIndex = min(last_array)
 
-  array = [0] * 100
+  histogram = [0] * 301
   index = 0
   total = 0
+  positions = [0] * 100001
 
   for line in content:
     if line.startswith('-'):
       index = index + 1
-      parts = line.split(' ')
-      value = int(parts[1])
-      thread = value / numOps
-      if thread < 0 or thread >= 100:
-        print "Invalid thread: " + str(thread)
-      elif array[thread] != 0:
-        oldIndex = array[thread]
-        difference = float(index - oldIndex) - average
-        total = total + (difference * difference)
+      if index >= startIndex and index <= endIndex:
+        parts = line.split(' ')
+        value = int(parts[1]) - 1
+        thread = value / numOps
+        element = value % numOps + 1
+        if thread == 1:
 
-      array[thread] = index
+          element = value % numOps + 1
+          positions[element] = index
 
-  variance = math.sqrt(total / (index - 1))
+          if (positions[element - 1] != 0) :
+            hist_index = positions[element] - positions[element - 1] + 100
+            if hist_index < 0:
+              hist_index = 0
+            elif hist_index > 300:
+              hist_index = 300
+
+            histogram[hist_index] = histogram[hist_index] + 1
+
+          elif (positions[element + 1] != 0) :
+            hist_index = positions[element + 1] - positions[element] + 100
+            if hist_index < 0:
+              hist_index = 0
+            elif hist_index > 300:
+              hist_index = 300
+
+            histogram[hist_index] = histogram[hist_index] + 1
+
   output = open(outputFilename, 'w')
-  output.write ("average {average} ; variance {variance}\n".format(
-      average = average, variance = variance))
+  for i in range(0, 301):
+    output.write ("{bin} {value}\n".format(bin = (i - 100), value = histogram[i]))
+
   output.close()
 
 import os;
@@ -82,6 +104,7 @@ def calcOpFairness(in_dir, out_dir):
   filenames = [{"filename":os.path.join(logDir, f), "directory":out_dir} for f in os.listdir(logDir) if os.path.isfile(os.path.join(logDir, f))]
  
 #  startCalculation(filenames[0])
+#  return
   pool = multiprocessing.Pool(multiprocessing.cpu_count())
   pool.map(startCalculation, filenames)
   pool.close()
