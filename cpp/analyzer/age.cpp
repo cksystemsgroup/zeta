@@ -98,6 +98,11 @@ Result* calculate_age(Element** elements, int num_ops) {
         }
       }
 
+      if (tmp == head) {
+        fprintf(stderr, "No matching insert was found for the remove operation -%d\n", next->element->value());
+        exit(-10);
+      }
+
       // Add the costs.
       result->total_costs += costs;
       result->num_ops++;
