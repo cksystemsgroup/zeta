@@ -214,7 +214,7 @@ void linearize_insert_ops(Operations* operations) {
         first_end = tmp->operation->end();
       }
 
-      if (tmp->matching_op->order < minimal_order) {
+      if (tmp->matching_op != NULL && tmp->matching_op->order < minimal_order) {
         minimal_order = tmp->matching_op->order;
       }
 
@@ -475,7 +475,6 @@ void match_operations(Operations* operations) {
 
   int insert_index = 0;
 
-  int i = 0;
   for (int remove_index = 0; remove_index < operations->num_remove_ops; remove_index++) {
 
     int64_t value = operations->remove_ops[remove_index]->operation->value();
@@ -483,8 +482,9 @@ void match_operations(Operations* operations) {
     // If the remove operation is not a null-return.
     if (value != -1) {
       while (operations->insert_ops[insert_index]->operation->value() < value) {
-        printf("insert without remove: %"PRIu64" because of value %"PRIu64"\n",
+        fprintf(stderr, "insert without remove: %"PRIu64" because of value %"PRIu64"\n",
           operations->insert_ops[insert_index]->operation->value(), value);
+        exit(31);
         operations->insert_ops[insert_index]->matching_op = NULL;
         insert_index++;
         if (insert_index >= operations->num_insert_ops) {
@@ -501,9 +501,6 @@ void match_operations(Operations* operations) {
 
       }
 
-      i++;
-
-      
       operations->insert_ops[insert_index]->matching_op =
         operations->remove_ops[remove_index];
       operations->remove_ops[remove_index]->matching_op =
@@ -522,6 +519,14 @@ void match_operations(Operations* operations) {
         operations->remove_ops[remove_index];
       operations->remove_ops[remove_index]->insert_added = true;
     }
+  }
+
+  for(;insert_index < operations->num_insert_ops; insert_index++) {
+
+    fprintf(stderr, "insert without remove: %"PRIu64"\n",
+      operations->insert_ops[insert_index]->operation->value());
+    operations->insert_ops[insert_index]->matching_op = NULL;
+    exit(31);
   }
 
 }
